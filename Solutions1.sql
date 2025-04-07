@@ -1,0 +1,166 @@
+-- NETFLIX PROJECT--
+DROP TABLE IF EXISTS netflix;
+CREATE TABLE netflix(
+
+show_id VARCHAR(150),
+type VARCHAR(225),
+title VARCHAR(225),
+director VARCHAR(225),
+casts VARCHAR(1000),
+country VARCHAR(225),
+date_added VARCHAR(50),
+release_year INT,
+rating VARCHAR(	150),
+duration VARCHAR(100),
+listed_in VARCHAR(225),
+description VARCHAR(250)
+
+);
+
+SELECT * FROM netflix
+
+-- DISTINCT TYPE OF MOVIES TYPES
+SELECT 
+     DISTINCT( type)
+FROM netflix
+
+-- SOLVING PROBLEMS --
+
+--Q1 COUNT THE NUMBER OF MOVIES VS MOVIE SHOWS
+SELECT 
+     type,
+     COUNT(type) AS total_content
+FROM netflix	
+GROUP BY 1
+
+
+-- Q2 FIND THE MOST COMMON RATING FOR MOVIES AND TV SHOWS
+SELECT *
+FROM
+(SELECT
+	 type,
+	 rating,
+	 COUNT(rating) AS common_rating,
+	 RANK() OVER(PARTITION BY type ORDER BY COUNT(rating) DESC) AS ranking
+FROM netflix
+GROUP BY 1,2
+) AS T1
+WHERE ranking = 1
+
+-- Q3 LIST ALL THE MOVIES RELEASE IN A SPECIFIC YEAR(2020)
+SELECT *
+FROM netflix
+WHERE 
+     release_year = 2020
+AND
+     type = 'Movie'
+
+
+--Q4 FIND THE TOP 5 COUNTRIES WITH MOST CONTENT ON Netflix.
+SELECT 
+      UNNEST(STRING_TO_ARRAY(country,',')) AS new_country, --THIS IS DONE BECAUESE WE HAD MULTIPLE COUNTRIES IN ONE ROW AND NEEDED TO SEPARATE THEM.
+	  COUNT(*) AS total_content
+FROM netflix
+GROUP BY 1
+ORDER BY 2 DESC
+LIMIT 5;
+
+-- Q5 IDENTIFY THE LONGEST MOVIES.
+SELECT * 
+FROM netflix
+WHERE
+     type= 'Movie'
+AND
+     duration = (SELECT MAX(duration) FROM netflix)
+
+-- Q6 FIND THE CONTENT ADDED IN THE LAST 5 YEARS
+SELECT
+     *
+FROM netflix
+WHERE TO_DATE(date_added,'Month DD, YYYY')<= CURRENT_DATE - INTERVAL '5 years'
+
+
+-- Q8 FIND ALL THE TV SHOWS/ MOVIES DIRECTED BY RAJIV CHILAKA
+SELECT 
+     *
+FROM netflix
+WHERE director ILIKE '%Rajiv Chilaka%'	
+
+-- Q9 LIST ALL TV SHOWS WITH MORE THAN 5 SEASONS.
+SELECT 
+       *
+       -- SPLIT_PART(duration,' ',1) AS seasons -- this is to split the column and grab the first character
+FROM netflix
+WHERE 
+SPLIT_PART(duration,' ',1) :: numeric > 5 -- THIS SPLIT THE DURATION AND GRAB THE NUMBER AND CONVERT IT TO NUMERIC
+AND 
+   type ='TV Show'
+
+-- Q9 COUNT THE NUMBER OF CONTENT ITEMS IN EACH GENRE
+SELECT
+      UNNEST(STRING_TO_ARRAY(listed_in, ',')) AS Genre,
+	  COUNT(show_id) AS Total_content
+FROM netflix
+GROUP BY 1 
+
+--Q10 FIND EACH YEAR AND THE AVERAGE NUMBER OF CONTENT RELEASED BY INDIA ON NETFLIX. RETURN TOP 5 YEAR WITH HIGHEST AVG CONTENT RELEASE
+SELECT
+     EXTRACT(YEAR FROM TO_DATE(date_added,'Month DD,YYYY')) AS year,
+	 COUNT(*) AS yearly_content,
+	 ROUND(COUNT(*):: NUMERIC/(SELECT COUNT(*) FROM netflix WHERE country ='India')::NUMERIC * 100 
+	 ,2)AS Total_content_release_per_year
+FROM netflix
+WHERE country ='India'
+GROUP BY 1;
+
+Q11 LIST ALL THE MOVIES THAT ARE DOCUMENTARIES
+SELECT *
+FROM
+(SELECT 
+      type,
+	  UNNEST(STRING_TO_ARRAY(listed_in,',')) AS new_list
+FROM netflix
+WHERE type ='Movie'
+) AS T1
+WHERE new_list ='Documentaries'
+
+-- Q12 FIND ALL CONTENT WITHOUT ARE A DIRECTOR
+SELECT *
+FROM netflix
+WHERE director IS NULL
+
+-- Q13 FIND HOW MANY MOVIES ACTOR 'SALMAN KHAN' APPEARED IN THE LAST 10 YEARS
+SELECT *
+FROM netflix
+WHERE 
+    casts ILIKE '%Salman Khan%'
+AND 	
+release_year >= EXTRACT(YEAR FROM CURRENT_DATE)-10
+
+--Q14	 FIND THE TOP 10 ACTORS WHO APPEARED IN THE HIGHEST NUMBER OF MOVIES PRODUCED IN INDIA
+SELECT
+     UNNEST(STRING_TO_ARRAY(casts,',')) as new_cast,
+	 type,
+	 country,
+	 COUNT(type) AS TOP_10
+FROM netflix
+WHERE type ='Movie' AND country ILIKE '%India%'
+GROUP BY 1,2,3
+ORDER BY TOP_10 DESC
+LIMIT 10
+
+-- Q15 CATEGORISE THE CONTENT BASED ON THE PRESENCE OF A KEYWORK 'KILL' OR 'VIOLENCE'
+--IN THE DESCRIPTION FIELD. LABEL CONTENT CONTAINING THESE WORDS AS 'BAD' AND ALL OTHER
+-- CONTENT AS 'GOOD'. COUNT HOW MANY ITEMS FALL IN EACH CATEGORY. 
+SELECT 
+      CASE 
+	     WHEN description ILIKE '%KILL%'
+		 OR
+	     description ILIKE'%Violence%' THEN 'Bad_Content' 
+	  ELSE 'Good_Content' END category,
+	  COUNT(*)
+FROM netflix
+GROUP BY 1
+
+
+
